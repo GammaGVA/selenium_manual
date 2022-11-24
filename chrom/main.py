@@ -10,7 +10,14 @@ try:
     options = webdriver.ChromeOptions()
     options.add_argument(
         "user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36")
+    # Говорим машине что мы такой user-agent
+
     options.add_argument("--disable-blink-features=AutomationControlled")
+    # Отключаем видимость вебдрайвера.
+
+    options.add_argument("--headless")
+    # Работаем в фоновом режиме.
+
     browser = Chrome(service=Service(r'/home/ivan/.ssh/selenium_manual/chrom/chromedriver'), options=options)
     # Забыл про options, теперь доставил. Т.к. скрыл работу webdriver-а, вчера некоторые данные не получалось в супе получить, сегодня должно получиться.
     # Service тут используется т.к. selenium обновился и теперь так вот
@@ -34,12 +41,18 @@ try:
 
     # name_orgs = name_orgs.replace(' ', '_').replace(',', '_').replace('.', '')
     # pagination = BS(browser.page_source, 'lxml').find_all('a', class_='lnk-page')
-    # Скорее всего сайт палит что я его парсю, надо попробовать через selenium кнопки искать. Так что код выше не подходит.
+    # Скорее всего, сайт палит что я его парсю, надо попробовать через selenium кнопки искать. Так что код выше не подходит.
+    # В первый раз это работало.
 
     sleep(2)
     number: int = int(browser.find_elements(by='class name', value='lnk-page')[-2].text)
 
+    punkt = 1
+    # Ввёл для отображения хода процесса, а то в фоновом не понятно что как идёт.
+
     for number_page in range(number):
+        print(f'Делаем {punkt}/{number}')
+        punkt += 1
         count = 0
         sleep(1)
         soup = BS(browser.page_source, 'lxml')
@@ -62,18 +75,19 @@ try:
                 else:
                     adress += [i]
             Dct[nme_org]['Адрес'] = ' '.join(adress).replace('  ', ' ').strip()
-            # Столько провозился и не понимал почему не всё пишется и много не полных словарей.
+            # Столько провозился и не понимал, почему не всё пишется и много не полных словарей.
             # Я запись под for запихнул.
             if 'Дата прекращения деятельности' not in info_org:
                 with open(f'{name_orgs}.json', 'a', encoding='utf-8') as file:
                     json.dump(Dct, file, indent=4, ensure_ascii=False)
             else:
                 with open(f'{name_orgs}_ликвидированные.json', 'a', encoding='utf-8') as file:
-                    json.dump((Dct, '\n'), file, indent=4, ensure_ascii=False)
+                    json.dump(Dct, file, indent=4, ensure_ascii=False)
             # Запись идёт криво, видимо json расчитан под запись одного словоря(скобки там в притирку получаются "конец пред словоря" - }{ - "начало след").
         browser.find_element(by='class name', value='lnk-page-next').click()
         # Тут раньше был косяк, искал по пути, и при новых значения name по страницам не переходило.
         sleep(2)
+    print('Готово!')
 except Exception as EX:
     print(EX)
 finally:
@@ -84,7 +98,7 @@ finally:
 В общих чертах гораздо удобнее чем request. На мой взгляд.
 
 by="class name" у меня нигде не сработал, так что скорее всего буду использовать "xpath".
-Всё заработало, руки выпримялись.
+Всё заработало, руки выпримялись. Наш
 
 Муторно что send_keys нельзя к одной переменной использовать дважды, но это просто увеличивает количество строк.
 
