@@ -1,8 +1,7 @@
-from selenium import webdriver  # Потребовалось для options
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
-from bs4 import BeautifulSoup as BS
+from selenium import webdriver
+# from selenium.webdriver import Chrome
+# from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.keys import Keys # Это не стал убирать
 from time import sleep
 import json
 
@@ -15,10 +14,12 @@ try:
     options.add_argument("--disable-blink-features=AutomationControlled")
     # Отключаем видимость вебдрайвера.
 
+    # options.headless = True - можно ещё вот так
     options.add_argument("--headless")
     # Работаем в фоновом режиме.
 
-    browser = Chrome(service=Service(r'/home/ivan/.ssh/selenium_manual/chrom/chromedriver'), options=options)
+    service = webdriver.chrome.service.Service(r'/home/ivan/.ssh/selenium_manual/chrom/chromedriver')
+    browser = webdriver.Chrome(service=service, options=options)
     # Забыл про options, теперь доставил. Т.к. скрыл работу webdriver-а, вчера некоторые данные не получалось в супе получить, сегодня должно получиться.
     # Service тут используется т.к. selenium обновился и теперь так вот
     # В chrom два драйвера, т.к. чередую винду и линукс
@@ -55,29 +56,31 @@ try:
         punkt += 1
         count = 0
         sleep(1)
-        soup = BS(browser.page_source, 'lxml')
-        # Слетела lxml долго не мог понять почему вчера работало, а сегодня нет (pip install lxml)
-        orgs = soup.find_all('a', class_='op-excerpt')
-        all_page = soup.find_all('div', class_='res-row')
+
+        all_page = browser.find_elements(by='xpath', value='//div[@class="res-row"]')
+        # Ушёл от супа, так стало попонятнее. Убрал мусорный элементы, дублировал инфу, теперь беру всё отсюда.
+
         for org in all_page:
-            info_org = org.find("div", class_="res-text").text
-            info_org_lst = info_org.split(',')
-            nme_org = orgs[count].text.strip()
+            name_org = org.find_element(by='class name', value='op-excerpt').text.strip()
+            info_org_list = org.find_element(by='class name', value="res-text").text.split(',')
             # Слеши "\" не реплесются в название, пробовал по всякому не получается.
             adress = []
-            Dct = {nme_org: {}}
+            Dct = {name_org: {}}
             count += 1
-            for i in info_org_lst:
+            for i in info_org_list:
                 if ':' in i:
                     point = i.split(':')[0].strip()
                     vale = i.split(':')[1].strip()
-                    Dct[nme_org].setdefault(point, vale)
+                    Dct[name_org].setdefault(point, vale)
                 else:
                     adress += [i]
-            Dct[nme_org]['Адрес'] = ' '.join(adress).replace('  ', ' ').strip()
+            if adress:
+                Dct[name_org]['Адрес'] = ' '.join(adress).replace('  ', ' ').strip()
+                # Сделал для ИП, от них адрес не тянется.
+
             # Столько провозился и не понимал, почему не всё пишется и много не полных словарей.
             # Я запись под for запихнул.
-            if 'Дата прекращения деятельности' not in info_org:
+            if 'Дата прекращения деятельности' not in Dct[name_org]:
                 with open(f'{name_orgs}.json', 'a', encoding='utf-8') as file:
                     json.dump(Dct, file, indent=4, ensure_ascii=False)
             else:
@@ -96,6 +99,7 @@ finally:
 
 '''
 В общих чертах гораздо удобнее чем request. На мой взгляд.
+В теории не вижу даже суп использовать.
 
 by="class name" у меня нигде не сработал, так что скорее всего буду использовать "xpath".
 Всё заработало, руки выпримялись. Наш
